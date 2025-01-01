@@ -41,6 +41,10 @@ functions:
           path: /lectures
           method: POST
           cors: true     
+      - http:
+          path: /lectures/{lectureId}
+          method: GET
+          cors: true    
 
 resources:
   Resources:

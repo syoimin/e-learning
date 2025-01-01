@@ -165,4 +165,44 @@ app.post("/lectures", async (req, res) => {
     });
   }
 });
+
+// 講義に紐づく設問一覧を取得
+app.get("/lectures/:lectureId", async (req, res) => {
+  const { lectureId } = req.params;
+ 
+  try {
+    const params = {
+      TableName: USERS_TABLE,
+      KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk_prefix)",
+      ExpressionAttributeValues: {
+        ":pk": `LECTURE#${lectureId}`,
+        ":sk_prefix": "LESSON#"
+      }
+    };
+ 
+    const command = new QueryCommand(params);
+    const response = await docClient.send(command);
+ 
+    // レスポンスデータを整形
+    const lessons = response.Items.map(item => ({
+      lessonId: item.lessonId,
+      lessonTitle: item.lessonTitle,
+      lessonContents: item.lessonContents,
+      lessonQuestions: item.lessonQuestions.map(question => ({
+        key: question.key,
+        value: question.value,
+        correct: question.correct
+      }))
+    }));
+ 
+    res.json(lessons);
+ 
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ 
+      error: "Could not retrieve lessons" 
+    });
+  }
+});
+
 exports.handler = serverless(app);
