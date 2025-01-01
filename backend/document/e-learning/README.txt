@@ -214,5 +214,157 @@ app.post("/lectures", async (req, res) => {
 
 
 ## 3. Step3 設問（Lesson）の作成
-先程の
+先程のコードを改修して、講義作成時に設問も一緒に作成できるようにします。
 
+▼ 講義と設問の作成
+```
+curl -H 'Content-Type: application/json' -X POST \
+     "https://bldggys750.execute-api.us-east-1.amazonaws.com/dev/lectures" \
+     -d '{
+       "lectureTitle": "HTML 基礎",
+       "category": "FE",
+       "lessons": [
+         {
+           "lessonTitle": "Pタグとは",
+           "lessonContents": "Pタグとは...",
+           "lessonQuestions": [
+             {
+               "value": "選択肢1",
+               "correct": false
+             },
+             {
+               "value": "選択肢2",
+               "correct": true
+             }
+           ]
+         },
+         {
+           "lessonTitle": "aタグとは",
+           "lessonContents": "aタグとは...",
+           "lessonQuestions": [
+             {
+               "value": "選択肢1",
+               "correct": false
+             },
+             {
+               "value": "選択肢2",
+               "correct": true
+             }
+           ]
+         }
+       ]
+     }' | jq
+```
+
+### プロンプト
+
+下記の条件を満たした設問（Lesson）を DynamoDB へ登録する処理を作成してください。
+・設問を作成する際には putCommand を利用してください。
+・Lesson 情報は一度に複数登録されます。
+・DynamoDB のデータ構造は添付の画像の様になっています。 
+　　PK には LECTURE#LC<lectureId> を登録します。
+　　SK には LESSON#LS を Prefix とし、ランダムな 16進数の小文字 8桁 を連結したものを登録します。
+　　このランダムな文字列は変数に保持しておきます。
+　　lessonId には LS を Prefix につけた上記の変数の値を連結した値を登録します。
+　　lessonQuestions は配列で定義します。
+　　lessonQuestions の key はランダムな 16進数の小文字 8 桁を登録します。
+・numberOfLesson には 設問数（lessons の length ）を保存してください。
+・リクエストBodyは下記のようになります。
+```json
+{
+    "lecttureTitle": string,
+    "category": string,
+    "lessons": [
+        {
+            "lessonTitle": string,
+            "lessonContents": string,
+            "lessonQuestions": [
+                {
+                    "value": string,
+                    "correct": boolean
+                },
+                {
+                    "value": string,
+                    "correct": boolean
+                }
+            ]
+        }
+    ]
+}
+```
+
+・レスポンスBodyは登録した lessonId を返却します。
+```json
+{
+    "lectureId": string
+    [
+        {
+            "lessonId": string
+        },
+        {
+            "lessonId": string
+        }
+    ]
+}
+```
+
+・下記コードを修正して実装してください
+```js
+// 講義を作成
+app.post("/lectures", async (req, res) => {
+  const { lectureTitle, category } = req.body;
+
+  // リクエストのバリデーション
+  if (!lectureTitle || !category) {
+    return res.status(400).json({
+      error: "lectureTitle and category are required"
+    });
+  }
+
+  try {
+    // ランダムな8桁の16進数を生成
+    const randomHex = Array.from(
+      crypto.getRandomValues(new Uint8Array(4))
+    ).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // 現在の日付を指定のフォーマットで生成
+    const today = new Date();
+    const createdAt = today.toLocaleDateString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).replace(/\//g, '/');
+
+    // lectureIdを生成
+    const lectureId = `LC${randomHex}`;
+
+    const params = {
+      TableName: USERS_TABLE,
+      Item: {
+        PK: "LECTURE",
+        SK: `LECTURE#${lectureId}`,
+        lectureId: lectureId,
+        lectureTitle: lectureTitle,
+        category: category,
+        nuberOfLessons: 0,  // 初期値として0を設定
+        createdAt: createdAt
+      }
+    };
+
+    await docClient.send(new PutCommand(params));
+
+    // 登録したlectureIdを返却
+    res.json({
+      lectureId: lectureId
+    });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      error: "Could not create lecture"
+    });
+  }
+});
+```
+
+・最終的に登録される DynamoDB のデータ構造は添付の画像の様になっています。 

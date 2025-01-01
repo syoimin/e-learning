@@ -74,22 +74,28 @@ app.get("/lectures", async (req, res) => {
 });
 
 
-// 講義を作成
+// ランダムな16進数の生成関数
+const generateRandomHex = () => {
+  return Array.from(
+    crypto.getRandomValues(new Uint8Array(4))
+  ).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+// 講義とレッスンを作成
 app.post("/lectures", async (req, res) => {
-  const { lectureTitle, category } = req.body;
+  const { lectureTitle, category, lessons } = req.body;
 
   // リクエストのバリデーション
-  if (!lectureTitle || !category) {
+  if (!lectureTitle || !category || !Array.isArray(lessons)) {
     return res.status(400).json({
-      error: "lectureTitle and category are required"
+      error: "lectureTitle, category, and lessons array are required"
     });
   }
 
   try {
-    // ランダムな8桁の16進数を生成
-    const randomHex = Array.from(
-      crypto.getRandomValues(new Uint8Array(4))
-    ).map(b => b.toString(16).padStart(2, '0')).join('');
+    // lectureIdを生成
+    const lectureRandomHex = generateRandomHex();
+    const lectureId = `LC${lectureRandomHex}`;
 
     // 現在の日付を指定のフォーマットで生成
     const today = new Date();
@@ -99,10 +105,8 @@ app.post("/lectures", async (req, res) => {
       day: '2-digit'
     }).replace(/\//g, '/');
 
-    // lectureIdを生成
-    const lectureId = `LC${randomHex}`;
-
-    const params = {
+    // 講義を登録
+    const lectureParams = {
       TableName: USERS_TABLE,
       Item: {
         PK: "LECTURE",
@@ -110,24 +114,55 @@ app.post("/lectures", async (req, res) => {
         lectureId: lectureId,
         lectureTitle: lectureTitle,
         category: category,
-        nuberOfLessons: 0,  // 初期値として0を設定
+        nuberOfLessons: lessons.length,
         createdAt: createdAt
       }
     };
 
-    await docClient.send(new PutCommand(params));
+    await docClient.send(new PutCommand(lectureParams));
 
-    // 登録したlectureIdを返却
+    // レッスンを登録
+    const lessonIds = [];
+    for (const lesson of lessons) {
+      // lessonIdを生成
+      const lessonRandomHex = generateRandomHex();
+      const lessonId = `LS${lessonRandomHex}`;
+
+      // レッスンの選択肢にランダムなkeyを設定
+      const questions = lesson.lessonQuestions.map(q => ({
+        key: generateRandomHex(),
+        value: q.value,
+        correct: q.correct
+      }));
+
+      const lessonParams = {
+        TableName: USERS_TABLE,
+        Item: {
+          PK: `LECTURE#${lectureId}`,
+          SK: `LESSON#${lessonId}`,
+          lectureId: lectureId,
+          lessonId: lessonId,
+          lessonTitle: lesson.lessonTitle,
+          lessonContents: lesson.lessonContents,
+          lessonQuestions: questions
+        }
+      };
+
+      await docClient.send(new PutCommand(lessonParams));
+      lessonIds.push({ lessonId });
+    }
+
+    // lectureIdとlessonIdsを返却
     res.json({
-      lectureId: lectureId
+      lectureId,
+      lessons: lessonIds
     });
 
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      error: "Could not create lecture"
+      error: "Could not create lecture and lessons"
     });
   }
 });
-
 exports.handler = serverless(app);
