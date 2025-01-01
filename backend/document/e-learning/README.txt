@@ -139,7 +139,80 @@ app.get("/lectures", async (req, res) => {
 ```
 
 
-## 2. Step2 設問の作成
+## 2. Step2 講義（Lecture）の作成
+講義を DynamoDB へ登録する処理を作成する。作成後は curl で動作確認する。
+
+▼ 講義の新規作成  
+`curl -H 'Content-Type: application/json' -X POST "https://bldggys750.execute-api.us-east-1.amazonaws.com/dev/lectures" -d '{"lectureTitle": "javascript 基礎", "category": "FE"}'`
 
 
+### プロンプト
+
+下記の条件を満たした講義（Lecture）を DynamoDB へ登録する処理を作成してください。
+・講義を作成する際には putCommand を利用してください
+・DynamoDB のデータ構造は添付の画像の様になっています。 
+　　PK には LECTURE を登録します。
+　　SK には LECTURE#LC を Prefix とし、ランダムな 16進数の小文字 8桁 を連結したものを登録します。
+　　このランダムな文字列は変数に保持しておきます。
+　　lectureId には LC を Prefix につけた上記の変数の値を連結した値を登録します。
+・リクエス URL は下記の用に定義します。
+　　POST: /lectures
+・登録日の日付を "2024/12/12" のフォーマットで文字列として createdAt に登録します。 
+・リクエストBodyは下記のようになります。
+```json
+{
+  "lectureTitle": string,
+  "category": string,
+}
+```
+・レスポンスBodyは登録した lectureId を返却します。
+```json
+{
+  "lectureId": string
+}
+```
+
+・下記コードの 「// ここにコードを追加」 の部分に実装してください。
+```js
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+
+const {
+  DynamoDBDocumentClient,
+  putCommand
+} = require("@aws-sdk/lib-dynamodb");
+
+const express = require("express");
+const serverless = require("serverless-http");
+
+const app = express();
+
+const USERS_TABLE = process.env.USERS_TABLE;
+const client = new DynamoDBClient();
+const docClient = DynamoDBDocumentClient.from(client);
+
+app.use(express.json());
+
+// ユーザ一覧の取得
+app.post("/lectures", async (req, res) => {
+  const params = {
+    TableName: USERS_TABLE,
+  };
+  // CORS ヘッダーを設定
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  
+  try {
+    // ここにコードを追加
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Could not retrieve user" });
+  }
+});
+```
+
+・最終的に登録される DynamoDB のデータ構造は添付画像のとおりです。
+
+
+## 3. Step3 設問（Lesson）の作成
+先程の
 
