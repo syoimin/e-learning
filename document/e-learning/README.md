@@ -3,18 +3,29 @@
 ## 1. Step1 設問一覧の取得
 
 ### プロンプト
+下記講義一覧のワイヤーフレームに沿ったNext.js のコードを作成してください。  
+ただし下記の条件に沿って記述してください。
+- tsx ファイルで作成
+- サンプルレスポンスデータはこちらで実装してください
+- インポートパッケージは下記を利用してください
+  - lucide-react
+- CSS フレームワークは `tailwindcss` を利用してください
+- カテゴリ検索は下記で検索できるようにしてください。
+  `const categories = ['すべてのカテゴリー', 'FE', 'BE'];`
 
-```
-下記講義一覧のワイヤーフレームに沿ったNext.js のコードを作成してください
-ただし下記の条件に沿って記述してください
-・ tsx ファイルで作成
-・ サンプルレスポンスデータはこちらで実装してください
-
+```json
 [
   {
     "lectureId": "LC8f6011e9",
-    "lectureTitle": "HTML基礎",
-    "category": "フロントエンド",
+    "lectureTitle": "HTML 基礎",
+    "category": "FE",
+    "nuberOfLessons": 5,
+    "createdAt": "2024/12/12"
+  },
+  {
+    "lectureId": "LC46a49d34",
+    "lectureTitle": "javascript 基礎",
+    "category": "BE",
     "nuberOfLessons": 5,
     "createdAt": "2024/12/12"
   }
@@ -27,6 +38,7 @@
 
 ### プロンプト
 サンプルで作成した講義一覧のフロントコードとAPIをつなぎ込んでください。  
+エンドポイントは環境変数から取得するようにしてください。  
 エンドポイントは `GET: /lectures?category=<category>&title=<title>` です。
 
 レスポンスBodyは下記のとおりです。
@@ -184,5 +196,82 @@ export default function QuestionList() {
       </div>
     </div>
   );
+}
+```
+
+## 3. Step3 設問の作成 API とのつなぎ込み
+設問の作成 API とフロントエンドをつなぎこんだ画面を作成します。
+
+事前に新規作成用のページを作成しておきます。
+`/lectures/create/page.tsx`
+
+
+### プロンプト
+添付画像のワイヤーフレームを下にフロントコードとAPIをつなぎ込んだコードを出力してください。  
+API のエンドポイントは `POST: /lectures` です。  
+
+ただし下記の条件に沿って記述してください。  
+- tsx ファイルで作成
+- サンプルのリクエスト Body レスポンス Body を参考に実装してください
+- インポートパッケージは下記を利用してください
+  - lucide-react
+- CSS フレームワークは `tailwindcss` を利用してください
+- エンドポイントは環境変数から取得するようにしてください。
+- 保存が成功したら `/` にリダイレクトするように実装してください。
+
+レスポンスBodyは下記のとおりです。
+
+▼ リクエスト Body  
+
+```json
+{
+  "lectureTitle": "HTML 基礎",
+  "category": "FE",
+  "lessons": [
+    {
+      "lessonTitle": "Pタグとは",
+      "lessonContents": "Pタグとは...",
+      "lessonQuestions": [
+        {
+          "value": "選択肢1",
+          "correct": false
+        },
+        {
+          "value": "選択肢2",
+          "correct": true
+        }
+      ]
+    },
+    {
+      "lessonTitle": "aタグとは",
+      "lessonContents": "aタグとは...",
+      "lessonQuestions": [
+        {
+          "value": "選択肢1",
+          "correct": false
+        },
+        {
+          "value": "選択肢2",
+          "correct": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+▼ レスポンス Body  
+
+```json
+{
+  "lectureId": "LCd75e78a0",
+  "lessons": [
+    {
+      "lessonId": "LSbf5efc2e"
+    },
+    {
+      "lessonId": "LSe350ac7f"
+    }
+  ]
 }
 ```

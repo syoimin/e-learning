@@ -322,6 +322,10 @@ curl -H 'Content-Type: application/json' -X POST \
 app.post("/lectures", async (req, res) => {
   const { lectureTitle, category } = req.body;
 
+  // CORS ヘッダーを設定
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+
   // リクエストのバリデーション
   if (!lectureTitle || !category) {
     return res.status(400).json({

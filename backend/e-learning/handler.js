@@ -84,6 +84,9 @@ const generateRandomHex = () => {
 // 講義とレッスンを作成
 app.post("/lectures", async (req, res) => {
   const { lectureTitle, category, lessons } = req.body;
+  // CORS ヘッダーを設定
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
 
   // リクエストのバリデーション
   if (!lectureTitle || !category || !Array.isArray(lessons)) {
@@ -169,6 +172,10 @@ app.post("/lectures", async (req, res) => {
 // 講義に紐づく設問一覧を取得
 app.get("/lectures/:lectureId", async (req, res) => {
   const { lectureId } = req.params;
+
+  // CORS ヘッダーを設定
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
  
   try {
     const params = {
