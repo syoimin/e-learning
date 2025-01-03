@@ -1,7 +1,6 @@
-// app/questions/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 
 interface Lecture {
@@ -12,31 +11,57 @@ interface Lecture {
   createdAt: string;
 }
 
-// サンプルデータ
-const sampleData: Lecture[] = [
-  {
-    lectureId: "LC8f6011e9",
-    lectureTitle: "HTML基礎",
-    category: "フロントエンド, プログラミング",
-    nuberOfLessons: 5,
-    createdAt: "2024/12/12"
-  }
-];
-
 export default function QuestionList() {
+  const [lectures, setLectures] = useState<Lecture[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('すべてのカテゴリー');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // カテゴリーの一覧を取得
-  const categories = ['すべてのカテゴリー', 'フロントエンド', 'バックエンド', '基礎'];
+  const categories = ['すべてのカテゴリー', 'FE', 'BE', '基礎'];
 
-  // 検索とフィルタリングの処理
-  const filteredData = sampleData.filter(item => {
-    const matchesSearch = item.lectureTitle.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'すべてのカテゴリー' || 
-      item.category.includes(selectedCategory);
-    return matchesSearch && matchesCategory;
-  });
+  // 講義データを取得する関数
+  const fetchLectures = async (title?: string, category?: string) => {
+    try {
+      setIsLoading(true);
+      let url = 'https://bldggys750.execute-api.us-east-1.amazonaws.com/dev/lectures';
+      
+      // クエリパラメータの構築
+      const params = new URLSearchParams();
+      if (title) params.append('title', title);
+      if (category && category !== 'すべてのカテゴリー') params.append('category', category);
+      if (params.toString()) url += `?${params.toString()}`;
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch lectures');
+      
+      const data = await response.json();
+      setLectures(data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load lectures');
+      console.error('Error fetching lectures:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 初回レンダリング時にデータを取得
+  useEffect(() => {
+    fetchLectures();
+  }, []);
+
+  // 検索とフィルタリングの実行
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      fetchLectures(
+        searchTerm || undefined,
+        selectedCategory !== 'すべてのカテゴリー' ? selectedCategory : undefined
+      );
+    }, 500); // 500ms のデバウンス
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm, selectedCategory]);
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -78,57 +103,63 @@ export default function QuestionList() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
-                カテゴリー
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
-                タイトル
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
-                設問数
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
-                作成日
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
-                操作
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredData.map((item) => (
-              <tr key={item.lectureId}>
-                <td className="px-6 py-4 text-sm text-gray-900">
-                  {item.category.split(',')[0].trim()}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-900">
-                  {item.lectureTitle}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-900">
-                  {item.nuberOfLessons}問
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-900">
-                  {item.createdAt}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-900">
-                  <div className="flex gap-2">
-                    <button className="text-blue-600 hover:text-blue-800">
-                      <Pencil className="w-5 h-5" />
-                    </button>
-                    <button className="text-red-600 hover:text-red-800">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                </td>
+      {isLoading ? (
+        <div className="text-center py-4">Loading...</div>
+      ) : error ? (
+        <div className="text-red-500 text-center py-4">{error}</div>
+      ) : (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="min-w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                  カテゴリー
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                  タイトル
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                  設問数
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                  作成日
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                  操作
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {lectures.map((item) => (
+                <tr key={item.lectureId}>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    {item.category}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    {item.lectureTitle}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    {item.nuberOfLessons}問
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    {item.createdAt}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    <div className="flex gap-2">
+                      <button className="text-blue-600 hover:text-blue-800">
+                        <Pencil className="w-5 h-5" />
+                      </button>
+                      <button className="text-red-600 hover:text-red-800">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
