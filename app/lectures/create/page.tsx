@@ -22,11 +22,6 @@ interface CreateLecturePayload {
  lessons: Lesson[];
 }
 
-interface CreateLectureResponse {
- lectureId: string;
- lessons: { lessonId: string }[];
-}
-
 export default function CreateLecture() {
  const router = useRouter();
  const categories = ['FE', 'BE'];
@@ -123,7 +118,6 @@ export default function CreateLecture() {
        throw new Error('Failed to create lecture');
      }
 
-     const data: CreateLectureResponse = await response.json();
      router.push('/lectures');
    } catch (error) {
      console.error('Error creating lecture:', error);
