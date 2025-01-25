@@ -1,8 +1,8 @@
-const { DynamoDBClient, ScanCommand } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 
 const {
   DynamoDBDocumentClient,
-  GetCommand,
+  QueryCommand,
   PutCommand,
 } = require("@aws-sdk/lib-dynamodb");
 
@@ -17,97 +17,199 @@ const docClient = DynamoDBDocumentClient.from(client);
 
 app.use(express.json());
 
-// ユーザ一覧の取得
-app.get("/users", async (req, res) => {
-  const params = {
-    TableName: USERS_TABLE,
-  };
+// 講義一覧の取得
+app.get("/lectures", async (req, res) => {
+  const { category, title } = req.query;
   // CORS ヘッダーを設定
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   
   try {
-    const command = new ScanCommand(params);
-    const { Items } = await docClient.send(command);
-    console.log("アイテム一覧")
-    console.log(Items)
-    if (Items && Items.length > 0) {
-      const formattedItems = Items.map(item => ({
-        userId: item.userId.S,
-        name: item.name.S
+    // Query parameters
+    const params = {
+      TableName: USERS_TABLE,
+      KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk_prefix)",
+      ExpressionAttributeValues: {
+        ":pk": "LECTURE",
+        ":sk_prefix": "LECTURE#"
+      }
+    };
+
+    // カテゴリとタイトルの検索条件を追加
+    if (category || title) {
+      const filterExpressions = [];
+      
+      if (category) {
+        filterExpressions.push("contains(category, :category)");
+        params.ExpressionAttributeValues[":category"] = category;
+      }
+      
+      if (title) {
+        filterExpressions.push("contains(lectureTitle, :title)");
+        params.ExpressionAttributeValues[":title"] = title;
+      }
+
+      if (filterExpressions.length > 0) {
+        params.FilterExpression = filterExpressions.join(" AND ");
+      }
+    }
+
+    const command = new QueryCommand(params);
+    const response = await docClient.send(command);
+
+    // レスポンスデータを整形
+    const lectures = response.Items.map(item => ({
+      lectureId: item.lectureId,
+      lectureTitle: item.lectureTitle,
+      category: item.category,
+      nuberOfLessons: parseInt(item.nuberOfLessons),
+      createdAt: item.createdAt
+    }));
+
+    res.json(lectures);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Could not retrieve user" });
+  }
+});
+
+
+// ランダムな16進数の生成関数
+const generateRandomHex = () => {
+  return Array.from(
+    crypto.getRandomValues(new Uint8Array(4))
+  ).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+// 講義とレッスンを作成
+app.post("/lectures", async (req, res) => {
+  const { lectureTitle, category, lessons } = req.body;
+  // CORS ヘッダーを設定
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+
+  // リクエストのバリデーション
+  if (!lectureTitle || !category || !Array.isArray(lessons)) {
+    return res.status(400).json({
+      error: "lectureTitle, category, and lessons array are required"
+    });
+  }
+
+  try {
+    // lectureIdを生成
+    const lectureRandomHex = generateRandomHex();
+    const lectureId = `LC${lectureRandomHex}`;
+
+    // 現在の日付を指定のフォーマットで生成
+    const today = new Date();
+    const createdAt = today.toLocaleDateString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).replace(/\//g, '/');
+
+    // 講義を登録
+    const lectureParams = {
+      TableName: USERS_TABLE,
+      Item: {
+        PK: "LECTURE",
+        SK: `LECTURE#${lectureId}`,
+        lectureId: lectureId,
+        lectureTitle: lectureTitle,
+        category: category,
+        nuberOfLessons: lessons.length,
+        createdAt: createdAt
+      }
+    };
+
+    await docClient.send(new PutCommand(lectureParams));
+
+    // レッスンを登録
+    const lessonIds = [];
+    for (const lesson of lessons) {
+      // lessonIdを生成
+      const lessonRandomHex = generateRandomHex();
+      const lessonId = `LS${lessonRandomHex}`;
+
+      // レッスンの選択肢にランダムなkeyを設定
+      const questions = lesson.lessonQuestions.map(q => ({
+        key: generateRandomHex(),
+        value: q.value,
+        correct: q.correct
       }));
-      res.json(formattedItems);
-    } else {
-      res
-        .status(404)
-        .json({ error: 'No users found' });
+
+      const lessonParams = {
+        TableName: USERS_TABLE,
+        Item: {
+          PK: `LECTURE#${lectureId}`,
+          SK: `LESSON#${lessonId}`,
+          lectureId: lectureId,
+          lessonId: lessonId,
+          lessonTitle: lesson.lessonTitle,
+          lessonContents: lesson.lessonContents,
+          lessonQuestions: questions
+        }
+      };
+
+      await docClient.send(new PutCommand(lessonParams));
+      lessonIds.push({ lessonId });
     }
+
+    // lectureIdとlessonIdsを返却
+    res.json({
+      lectureId,
+      lessons: lessonIds
+    });
+
   } catch (error) {
     console.log(error);
-    res.status(500).json({ error: "Could not retrieve user" });
+    res.status(500).json({
+      error: "Could not create lecture and lessons"
+    });
   }
 });
 
-app.get("/users/:userId", async (req, res) => {
-  const params = {
-    TableName: USERS_TABLE,
-    Key: {
-      userId: req.params.userId,
-    },
-  };
+// 講義に紐づく設問一覧を取得
+app.get("/lectures/:lectureId", async (req, res) => {
+  const { lectureId } = req.params;
 
   // CORS ヘッダーを設定
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  
+ 
   try {
-    const command = new GetCommand(params);
-    const { Item } = await docClient.send(command);
-    if (Item) {
-      const { userId, name } = Item;
-      res.json({ userId, name });
-    } else {
-      res
-        .status(404)
-        .json({ error: 'Could not find user with provided "userId"' });
-    }
+    const params = {
+      TableName: USERS_TABLE,
+      KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk_prefix)",
+      ExpressionAttributeValues: {
+        ":pk": `LECTURE#${lectureId}`,
+        ":sk_prefix": "LESSON#"
+      }
+    };
+ 
+    const command = new QueryCommand(params);
+    const response = await docClient.send(command);
+ 
+    // レスポンスデータを整形
+    const lessons = response.Items.map(item => ({
+      lessonId: item.lessonId,
+      lessonTitle: item.lessonTitle,
+      lessonContents: item.lessonContents,
+      lessonQuestions: item.lessonQuestions.map(question => ({
+        key: question.key,
+        value: question.value,
+        correct: question.correct
+      }))
+    }));
+ 
+    res.json(lessons);
+ 
   } catch (error) {
     console.log(error);
-    res.status(500).json({ error: "Could not retrieve user" });
+    res.status(500).json({ 
+      error: "Could not retrieve lessons" 
+    });
   }
-});
-
-app.post("/users", async (req, res) => {
-  const { userId, name } = req.body;
-  if (typeof userId !== "string") {
-    res.status(400).json({ error: '"userId" must be a string' });
-  } else if (typeof name !== "string") {
-    res.status(400).json({ error: '"name" must be a string' });
-  }
-
-  const params = {
-    TableName: USERS_TABLE,
-    Item: { userId, name },
-  };
-
-  // CORS ヘッダーを設定
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-
-  try {
-    const command = new PutCommand(params);
-    await docClient.send(command);
-    res.json({ userId, name });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Could not create user" });
-  }
-});
-
-app.use((req, res, next) => {
-  return res.status(404).json({
-    error: "Not Found",
-  });
 });
 
 exports.handler = serverless(app);

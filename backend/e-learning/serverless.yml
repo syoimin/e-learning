@@ -25,7 +25,7 @@ provider:
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
           Resource:
-            - Fn::GetAtt: [UsersTable, Arn]
+            - Fn::GetAtt: [MainTable, Arn]
   environment:
     USERS_TABLE: ${param:tableName}
 
@@ -34,32 +34,32 @@ functions:
     handler: handler.handler
     events:
       - http:
-          path: /users
+          path: /lectures
           method: GET
           cors: true
       - http:
-          path: /users/{userId}
-          method: GET
-          cors: true
-          request:
-            parameters:
-              paths:
-                userId: true
-      - http:
-          path: /users
+          path: /lectures
           method: POST
-          cors: true
+          cors: true     
+      - http:
+          path: /lectures/{lectureId}
+          method: GET
+          cors: true    
 
 resources:
   Resources:
-    UsersTable:
+    MainTable:
       Type: AWS::DynamoDB::Table
       Properties:
+        TableName: ${param:tableName}
+        BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
-          - AttributeName: userId
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
             AttributeType: S
         KeySchema:
-          - AttributeName: userId
+          - AttributeName: PK
             KeyType: HASH
-        BillingMode: PAY_PER_REQUEST
-        TableName: ${param:tableName}
+          - AttributeName: SK
+            KeyType: RANGE

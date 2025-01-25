@@ -1,242 +1,171 @@
-"use client";
+// app/lectures/page.tsx
+'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Pencil, Trash2, Plus } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { API_ENDPOINTS } from '@/lib/api-config';
+import { useState, useEffect } from 'react';
+import { Pencil, Trash2, Search } from 'lucide-react';
+import Link from 'next/link';
 
-interface User {
-  userId: string;
-  name: string;
+interface Lecture {
+ lectureId: string;
+ lectureTitle: string;
+ category: string;
+ nuberOfLessons: number;
+ createdAt: string;
 }
 
-interface ApiError {
-  message: string;
+export default function LectureList() {
+ const [lectures, setLectures] = useState<Lecture[]>([]);
+ const [searchTerm, setSearchTerm] = useState('');
+ const [selectedCategory, setSelectedCategory] = useState('すべてのカテゴリー');
+ const [isLoading, setIsLoading] = useState(true);
+ const [error, setError] = useState<string | null>(null);
+
+ const categories = ['すべてのカテゴリー', 'FE', 'BE'];
+
+ const fetchLectures = async (title?: string, category?: string) => {
+   try {
+     setIsLoading(true);
+     let url = `${process.env.NEXT_PUBLIC_API_URL}/lectures`;
+     
+     const params = new URLSearchParams();
+     if (title) params.append('title', title);
+     if (category && category !== 'すべてのカテゴリー') params.append('category', category);
+     if (params.toString()) url += `?${params.toString()}`;
+
+     const response = await fetch(url);
+     if (!response.ok) throw new Error('Failed to fetch lectures');
+     
+     const data = await response.json();
+     setLectures(data);
+     setError(null);
+   } catch (err) {
+     setError('講義一覧の取得に失敗しました');
+     console.error('Error fetching lectures:', err);
+   } finally {
+     setIsLoading(false);
+   }
+ };
+
+ useEffect(() => {
+   fetchLectures();
+ }, []);
+
+ useEffect(() => {
+   const debounceTimer = setTimeout(() => {
+     fetchLectures(
+       searchTerm || undefined,
+       selectedCategory !== 'すべてのカテゴリー' ? selectedCategory : undefined
+     );
+   }, 500);
+
+   return () => clearTimeout(debounceTimer);
+ }, [searchTerm, selectedCategory]);
+
+ return (
+   <div className="max-w-6xl mx-auto p-6">
+     <div className="mb-6">
+       <div className="flex justify-between items-center mb-6">
+         <h1 className="text-2xl font-bold">設問グループ一覧</h1>
+         <Link 
+           href="/lectures/create"
+           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
+         >
+           新規作成
+         </Link>
+       </div>
+
+       <div className="flex gap-4 mb-6">
+         <div className="flex-1">
+           <div className="relative">
+             <input
+               type="text"
+               placeholder="設問グループを検索..."
+               className="w-full p-2 border rounded pl-10"
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+             />
+             <Search className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
+           </div>
+         </div>
+         <select
+           className="border rounded p-2 min-w-[200px]"
+           value={selectedCategory}
+           onChange={(e) => setSelectedCategory(e.target.value)}
+         >
+           {categories.map((category) => (
+             <option key={category} value={category}>
+               {category}
+             </option>
+           ))}
+         </select>
+       </div>
+     </div>
+
+     {isLoading ? (
+       <div className="flex justify-center py-8">
+         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+       </div>
+     ) : error ? (
+       <div className="text-red-500 text-center py-4">{error}</div>
+     ) : (
+       <div className="bg-white rounded-lg shadow overflow-hidden">
+         <table className="min-w-full">
+           <thead className="bg-gray-50">
+             <tr>
+               <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                 カテゴリー
+               </th>
+               <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                 タイトル
+               </th>
+               <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                 設問数
+               </th>
+               <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                 作成日
+               </th>
+               <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                 操作
+               </th>
+             </tr>
+           </thead>
+           <tbody className="divide-y divide-gray-200">
+             {lectures.map((lecture) => (
+               <tr key={lecture.lectureId} className="hover:bg-gray-50">
+                 <td className="px-6 py-4 text-sm text-gray-900">
+                   {lecture.category}
+                 </td>
+                 <td className="px-6 py-4 text-sm text-gray-900">
+                   {lecture.lectureTitle}
+                 </td>
+                 <td className="px-6 py-4 text-sm text-gray-900">
+                   {lecture.nuberOfLessons}問
+                 </td>
+                 <td className="px-6 py-4 text-sm text-gray-900">
+                   {lecture.createdAt}
+                 </td>
+                 <td className="px-6 py-4 text-sm text-gray-900">
+                   <div className="flex gap-3">
+                     <button className="text-blue-600 hover:text-blue-800 transition-colors">
+                       <Pencil className="w-5 h-5" />
+                     </button>
+                     <button className="text-red-600 hover:text-red-800 transition-colors">
+                       <Trash2 className="w-5 h-5" />
+                     </button>
+                   </div>
+                 </td>
+               </tr>
+             ))}
+           </tbody>
+         </table>
+
+         {lectures.length === 0 && (
+           <div className="text-center py-8 text-gray-500">
+             講義が見つかりませんでした
+           </div>
+         )}
+       </div>
+     )}
+   </div>
+ );
 }
-
-const UserManagement: React.FC = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<User>({ userId: '', name: '' });
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-
-  // ユーザー一覧の取得
-  const fetchUsers = async (): Promise<void> => {
-    try {
-      const response = await fetch(API_ENDPOINTS.users);
-      if (!response.ok) throw new Error('Failed to fetch users');
-      const data: User[] = await response.json();
-      setUsers(data);
-    } catch (err) {
-      const error = err as ApiError;
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  // ユーザーの作成
-  const createUser = async (userData: User): Promise<void> => {
-    try {
-      const response = await fetch(API_ENDPOINTS.users, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
-      });
-      if (!response.ok) throw new Error('Failed to create user');
-      await fetchUsers();
-    } catch (err) {
-      const error = err as ApiError;
-      setError(error.message);
-    }
-  };
-
-  // ユーザーの更新
-  const updateUser = async (userId: string, userData: User): Promise<void> => {
-    try {
-      const response = await fetch(API_ENDPOINTS.user(userId), {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
-      });
-      if (!response.ok) throw new Error('Failed to update user');
-      await fetchUsers();
-    } catch (err) {
-      const error = err as ApiError;
-      setError(error.message);
-    }
-  };
-
-  // ユーザーの削除
-  const deleteUser = async (userId: string): Promise<void> => {
-    if (!window.confirm('このユーザーを削除してもよろしいですか？')) return;
-    try {
-      const response = await fetch(API_ENDPOINTS.user(userId), {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to delete user');
-      await fetchUsers();
-    } catch (err) {
-      const error = err as ApiError;
-      setError(error.message);
-    }
-  };
-
-  // フォームの送信処理
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault();
-    if (isEditing) {
-      await updateUser(currentUser.userId, currentUser);
-    } else {
-      await createUser(currentUser);
-    }
-    setIsDialogOpen(false);
-    setCurrentUser({ userId: '', name: '' });
-  };
-
-  // 編集ダイアログを開く
-  const openEditDialog = (user: User): void => {
-    setCurrentUser(user);
-    setIsEditing(true);
-    setIsDialogOpen(true);
-  };
-
-  // 新規作成ダイアログを開く
-  const openCreateDialog = (): void => {
-    setCurrentUser({ userId: '', name: '' });
-    setIsEditing(false);
-    setIsDialogOpen(true);
-  };
-
-  if (isLoading) return <div className="p-4">Loading...</div>;
-
-  return (
-    <div className="max-w-4xl mx-auto p-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>ユーザー一覧</CardTitle>
-          <button
-            onClick={openCreateDialog}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-          >
-            <Plus className="h-4 w-4" />
-            新規作成
-          </button>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-4 py-2 text-left">userId</th>
-                  <th className="px-4 py-2 text-left">名前</th>
-                  <th className="px-4 py-2 text-center">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.userId} className="border-b">
-                    <td className="px-4 py-2">{user.userId}</td>
-                    <td className="px-4 py-2">{user.name}</td>
-                    <td className="px-4 py-2">
-                      <div className="flex justify-center space-x-2">
-                        <button
-                          onClick={() => openEditDialog(user)}
-                          className="p-1 text-blue-500 hover:text-blue-700"
-                          title="編集"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteUser(user.userId)}
-                          className="p-1 text-red-500 hover:text-red-700"
-                          title="削除"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditing ? 'ユーザーの編集' : 'ユーザーの新規作成'}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">userId</label>
-              <input
-                type="text"
-                value={currentUser.userId}
-                onChange={(e) =>
-                  setCurrentUser({ ...currentUser, userId: e.target.value })
-                }
-                className="w-full p-2 border rounded-md"
-                disabled={isEditing}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">名前</label>
-              <input
-                type="text"
-                value={currentUser.name}
-                onChange={(e) =>
-                  setCurrentUser({ ...currentUser, name: e.target.value })
-                }
-                className="w-full p-2 border rounded-md"
-                required
-              />
-            </div>
-            <DialogFooter>
-              <button
-                type="button"
-                onClick={() => setIsDialogOpen(false)}
-                className="px-4 py-2 text-gray-500 hover:text-gray-700"
-              >
-                キャンセル
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-              >
-                {isEditing ? '更新' : '作成'}
-              </button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default UserManagement;
