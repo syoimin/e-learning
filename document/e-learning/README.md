@@ -297,7 +297,7 @@ export default function QuestionList() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">設問グループ一覧</h1>
+        <h1 className="text-2xl font-bold mb-4">講義一覧</h1>
         
         <div className="flex justify-between items-center mb-6">
           <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
@@ -310,7 +310,7 @@ export default function QuestionList() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="設問グループを検索..."
+                placeholder="講義一覧を検索..."
                 className="w-full p-2 border rounded pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
