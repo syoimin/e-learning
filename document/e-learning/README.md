@@ -1,6 +1,6 @@
 # e-learning フロントエンド作成
 
-## 1. Step1 設問一覧の取得
+## 1. Step1 設問一覧の取得の実装
 
 ### プロンプト
 下記講義一覧のワイヤーフレームに沿ったNext.js のコードを作成してください。  
@@ -32,7 +32,197 @@
 ]
 ```
 
+![講義一覧](講義一覧.png)
+
+出力されたコードに use client を追加する
+ファイルの拡張子を .tsx に変更する
+
+```shell
+pnpm install lucide-react
+pnpm run dev
+```
+
+
 以降 バックエンド側の実装へ
+
+
+### 講義（Lecture）一覧取得 API の作成
+
+一度チュートリアル環境を削除します。
+
+`sls remove`
+
+プロンプトを参考にコードを作成します。
+
+
+デプロイします。
+
+`sls deploy`
+
+データを投入して、動作確認を行います。
+
+```json
+{
+ "PK": "LECTURE",
+ "SK": "LECTURE#LC42394D34",
+ "category": "BE",
+ "createdAt": "2024/12/12",
+ "lectureId": "LC42394D34",
+ "lectureTitle": "GO 言語基礎",
+ "nuberOfLessons": 5
+}
+
+{
+ "PK": "LECTURE",
+ "SK": "LECTURE#LC8f6011e9",
+ "category": "FE",
+ "createdAt": "2024/12/12",
+ "lectureId": "LC8f6011e9",
+ "lectureTitle": "HTML基礎",
+ "nuberOfLessons": 5
+}
+```
+
+▼ 全件取得  
+`curl -H 'Content-Type: application/json' -X GET "https://<ID>.execute-api.us-east-1.amazonaws.com/dev/lectures" | jq`
+
+▼ カテゴリ検索  
+`curl -H 'Content-Type: application/json' -X GET "https://<ID>.execute-api.us-east-1.amazonaws.com/dev/lectures?category=FE" | jq`
+
+▼ タイトル検索  
+`curl -H 'Content-Type: application/json' -X GET "https://<ID>.execute-api.us-east-1.amazonaws.com/dev/lectures?title=HTML" | jq`
+
+
+### プロンプト
+
+#### Serverless.yml の DynamoDB テーブル作成用プロンプト
+
+- 添付のテーブル構造を持つ DynamoDB を生成します。
+- 下記コードサンプルに沿って serverless.yml に定義を作成してください。
+- ただし GSI は作成しなくてよいです。
+
+※ テーブル構造.png の画像を添付する
+
+![テーブル構造](テーブル構造.png)
+
+```yml
+org: syoiminserver
+app: e-learning
+service: e-learning
+
+stages:
+  default:
+    params:
+      tableName: "main-table-${sls:stage}"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::GetAtt: [MainTable, Arn]
+  environment:
+    USERS_TABLE: ${param:tableName}
+
+functions:
+  api:
+    handler: handler.handler
+    events:
+      - http:
+          path: /lectures # 講義一覧取得
+          method: GET
+          cors: true
+      - http:
+          path: /lectures # 講義一覧作成
+          method: POST
+          cors: true     
+      - http:
+          path: /lectures/{lectureId}/lessons # 設問一覧取得
+          method: GET
+          cors: true 
+
+resources:
+  Resources:
+    MainTable:
+  // ここにテーブル定義を追加
+```
+
+#### API 作成用プロンプト
+※ step2用 の画像を添付する
+![step2用](step2用.png)
+
+下記の条件を満たした講義一覧を DynamoDB から取得する処理を作成してください。
+
+- 講義一覧を取得する際には QuryCommand を利用してください
+- DynamoDB のデータ構造は添付の画像の様になっています。SK が LECTURE# で始まる Lecture 一覧を取得してください。
+- 検索はフィルタ式を利用してクエリパラメータの下記を満たして検索できるようにしてください
+  - `GET: /lectures?category=<カテゴリ文字列>&title=<タイトル文字列>`
+  - カテゴリ文字列、タイトル文字列ともに部分一致検索に対応してください
+  - レスポンスは下記 JSON フォーマットで返却してください
+
+```json
+[
+  {
+      "lectureId": string,
+      "lectureTitle": string,
+      "category": string,
+      "nuberOfLessons": number,
+      "createdAt": string
+  }
+]
+```
+
+- 下記コードの 「// ここにコードを追加」 の部分に実装してください
+
+```js
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+
+const {
+  DynamoDBDocumentClient,
+  QueryCommand
+} = require("@aws-sdk/lib-dynamodb");
+
+const express = require("express");
+const serverless = require("serverless-http");
+
+const app = express();
+
+const USERS_TABLE = process.env.USERS_TABLE;
+const client = new DynamoDBClient();
+const docClient = DynamoDBDocumentClient.from(client);
+
+app.use(express.json());
+
+// ユーザ一覧の取得
+app.get("/lectures", async (req, res) => {
+  const params = {
+    TableName: USERS_TABLE,
+  };
+  // CORS ヘッダーを設定
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  
+  try {
+    // ここにコードを追加
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Could not retrieve user" });
+  }
+});
+```
+
+最後にデプロイを行う
+`sls deploy`
 
 ## 2. Step2 設問一覧フロントエンドとAPIのつなぎ込み
 
@@ -83,7 +273,7 @@ const sampleData: Lecture[] = [
   {
     lectureId: "LC8f6011e9",
     lectureTitle: "HTML基礎",
-    category: "フロントエンド, プログラミング",
+    category: "FE, BE",
     nuberOfLessons: 5,
     createdAt: "2024/12/12"
   }
@@ -94,7 +284,7 @@ export default function QuestionList() {
   const [selectedCategory, setSelectedCategory] = useState('すべてのカテゴリー');
 
   // カテゴリーの一覧を取得
-  const categories = ['すべてのカテゴリー', 'フロントエンド', 'バックエンド', '基礎'];
+  const categories = ['すべてのカテゴリー', 'BE', 'FE'];
 
   // 検索とフィルタリングの処理
   const filteredData = sampleData.filter(item => {
@@ -199,6 +389,12 @@ export default function QuestionList() {
 }
 ```
 
+.env.local ファイルにAPIのエンドポイントの環境変数を作成する
+
+```
+NEXT_PUBLIC_API_ENDPOINT=https://<ID>.execute-api.us-east-1.amazonaws.com/dev
+```
+
 ## 3. Step3 設問の作成 API とのつなぎ込み
 設問の作成 API とフロントエンドをつなぎこんだ画面を作成します。
 
@@ -284,7 +480,7 @@ API のエンドポイントは `POST: /lectures` です。
 
 ### プロンプト
 添付画像のワイヤーフレームを下にフロントコードとAPIをつなぎ込んだコードを出力してください。  
-API のエンドポイントは `GET: /lectures/{id}` です。  
+API のエンドポイントは `GET: /lectures/{id}/lessons` です。  
 
 ただし下記の条件に沿って記述してください。  
 - tsx ファイルで作成
