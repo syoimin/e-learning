@@ -169,7 +169,7 @@ resources:
 
 #### API 作成用プロンプト
 ※ step2用 の画像を添付する
-![step2用](step2用.png)
+![step2用](Step2用.png)
 
 下記の条件を満たした講義一覧を DynamoDB から取得する処理を作成してください。
 
