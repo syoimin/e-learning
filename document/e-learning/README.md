@@ -81,6 +81,16 @@ pnpm run dev
  "lectureTitle": "HTML基礎",
  "nuberOfLessons": 5
 }
+
+{
+ "PK": "LECTURE",
+ "SK": "LECTURE#LC5a3254d2",
+ "category": "BE",
+ "createdAt": "2024/01/15",
+ "lectureId": "LC5a3254d2",
+ "lectureTitle": "Python基礎",
+ "nuberOfLessons": 5
+}
 ```
 
 ▼ 全件取得  
