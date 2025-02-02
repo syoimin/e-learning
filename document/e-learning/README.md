@@ -622,7 +622,7 @@ API のエンドポイントは `POST: /lectures` です。
 
 ▼ 設問一覧の取得  
 
-`curl -H 'Content-Type: application/json' -X GET "https://bldggys750.execute-api.us-east-1.amazonaws.com/dev/lectures/lessons/LCd75e78a0" | jq`
+`curl -H 'Content-Type: application/json' -X GET "https://<API ID>.execute-api.us-east-1.amazonaws.com/dev/lectures/LCd75e78a0/lessons" | jq`
 
 ### プロンプト
 下記の条件を満たした設問一覧を DynamoDB から取得する処理を作成してください。
