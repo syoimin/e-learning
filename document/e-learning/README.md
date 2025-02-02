@@ -405,7 +405,137 @@ export default function QuestionList() {
 NEXT_PUBLIC_API_ENDPOINT=https://<ID>.execute-api.us-east-1.amazonaws.com/dev
 ```
 
-## 3. Step3 設問の作成 API とのつなぎ込み
+
+
+## 3. Step3 設問（Lessons）作成 API の実装
+講義と設問を作成する API を実装します。
+
+▼ 講義と設問の作成
+
+```
+curl -H 'Content-Type: application/json' -X POST \
+     "https://bldggys750.execute-api.us-east-1.amazonaws.com/dev/lectures" \
+     -d '{
+       "lectureTitle": "HTML 基礎",
+       "category": "FE",
+       "lessons": [
+         {
+           "lessonTitle": "Pタグとは",
+           "lessonContents": "Pタグとは...",
+           "lessonQuestions": [
+             {
+               "value": "選択肢1",
+               "correct": false
+             },
+             {
+               "value": "選択肢2",
+               "correct": true
+             }
+           ]
+         },
+         {
+           "lessonTitle": "aタグとは",
+           "lessonContents": "aタグとは...",
+           "lessonQuestions": [
+             {
+               "value": "選択肢1",
+               "correct": false
+             },
+             {
+               "value": "選択肢2",
+               "correct": true
+             }
+           ]
+         }
+       ]
+     }' | jq
+```
+
+### プロンプト
+
+下記の条件を満たした設問（Lesson）を DynamoDB へ登録する処理を作成してください。
+
+- 設問を作成する際には putCommand を利用してください。
+- Lesson 情報は一度に複数登録されます。
+- バリデーションの実装は「バリデーションをここに追加」に実装してください
+- DynamoDB のデータ構造は添付の画像の様になっています。 
+  - PK には `LECTURE#LC<lectureId>` を登録します。
+  - SK には LESSON#LS を Prefix とし、ランダムな 16進数の小文字 8桁 を連結したものを登録します。
+  - このランダムな文字列は変数に保持しておきます。
+  - lessonId には LS を Prefix につけた上記の変数の値を連結した値を登録します。
+  - lessonQuestions は配列で定義します。
+  - lessonQuestions の key はランダムな 16進数の小文字 8 桁を登録します。
+- numberOfLesson には 設問数（lessons の length ）を保存してください。
+- リクエストBodyは下記のようになります。
+
+```json
+{
+    "lecttureTitle": string,
+    "category": string,
+    "lessons": [
+        {
+            "lessonTitle": string,
+            "lessonContents": string,
+            "lessonQuestions": [
+                {
+                    "value": string,
+                    "correct": boolean
+                },
+                {
+                    "value": string,
+                    "correct": boolean
+                }
+            ]
+        }
+    ]
+}
+```
+
+- レスポンスBodyは登録した lessonId を返却します。
+
+```json
+{
+    "lectureId": string
+    [
+        {
+            "lessonId": string
+        },
+        {
+            "lessonId": string
+        }
+    ]
+}
+```
+
+- 下記コードを修正して実装してください
+
+```js
+// 講義を作成
+app.post("/lectures", async (req, res) => {
+  const { lectureTitle, category } = req.body;
+
+  // CORS ヘッダーを設定
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+
+  // バリデーションをここに追加
+
+  try {
+    // ここにコードを追加
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      error: "Could not create lecture"
+    });
+  }
+});
+```
+
+- 最終的に登録される DynamoDB のデータ構造は添付の画像の様になっています。 
+![テーブル構造](テーブル構造.png)
+
+## 4. Step4 設問の作成 API とのつなぎ込み
 設問の作成 API とフロントエンドをつなぎこんだ画面を作成します。
 
 事前に新規作成用のページを作成しておきます。
@@ -482,7 +612,88 @@ API のエンドポイントは `POST: /lectures` です。
 }
 ```
 
-## 3. Step4 設問一覧と API のつなぎ込み
+
+
+## 5. Step5 設問（Lesson）一覧の取得 API の実装
+講義（Lecture）に紐づく全ての設問一覧を取得します。
+
+▼ 設問一覧の取得  
+
+`curl -H 'Content-Type: application/json' -X GET "https://bldggys750.execute-api.us-east-1.amazonaws.com/dev/lectures/LCd75e78a0" | jq`
+
+### プロンプト
+下記の条件を満たした設問一覧を DynamoDB から取得する処理を作成してください。
+
+- 設問一覧を取得する際には QuryCommand を利用してください。
+- リクエストエンドポイント及びパスは下記のとおりです。
+  - `GET: /lectures/:lectureId`
+  - PK が LESSON#<lectureId> のデータを DynamoDB から取得してください。 
+
+- レスポンスは下記の JSON を返却してください。
+
+```json
+    [
+        {
+            "lessonId": string,
+            "lessonTitle": string,
+            "lessonContents": string,
+            "lessonQuestions": [
+                {
+                    "key": string,
+                    "value": string,
+                    "correct": boolean
+                },
+                {
+                    "key": string,
+                    "value": string,
+                    "correct": boolean
+                }
+            ]
+        }
+    ]
+```
+
+- 下記コードの 「// ここにコードを追加」 の部分に実装してください
+
+```js
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+
+const {
+  DynamoDBDocumentClient,
+  QueryCommand
+} = require("@aws-sdk/lib-dynamodb");
+
+const express = require("express");
+const serverless = require("serverless-http");
+
+const app = express();
+
+const USERS_TABLE = process.env.USERS_TABLE;
+const client = new DynamoDBClient();
+const docClient = DynamoDBDocumentClient.from(client);
+
+app.use(express.json());
+
+// ユーザ一覧の取得
+app.get("/lectures/:lectureId", async (req, res) => {
+  const params = {
+    TableName: USERS_TABLE,
+  };
+  // CORS ヘッダーを設定
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  
+  try {
+    // ここにコードを追加
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Could not retrieve user" });
+  }
+});
+```
+
+
+## 6. Step6 設問一覧と API のつなぎ込み
 設問一覧 API とフロントエンドをつなぎこんだ画面を作成します。
 
 事前に新規作成用のページを作成しておきます。
