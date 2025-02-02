@@ -629,7 +629,7 @@ API のエンドポイントは `POST: /lectures` です。
 
 - 設問一覧を取得する際には QuryCommand を利用してください。
 - リクエストエンドポイント及びパスは下記のとおりです。
-  - `GET: /lectures/:lectureId`
+  - `GET: /lectures/:lectureId/lessons`
   - PK が LESSON#<lectureId> のデータを DynamoDB から取得してください。 
 
 - レスポンスは下記の JSON を返却してください。
