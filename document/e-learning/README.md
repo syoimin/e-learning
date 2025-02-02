@@ -1,6 +1,6 @@
 # e-learning フロントエンド作成
 
-## 1. Step1 設問一覧の取得の実装
+## 1. 講義一覧の取得の実装
 
 ### プロンプト
 下記講義一覧のワイヤーフレームに沿ったNext.js のコードを作成してください。  
@@ -234,7 +234,7 @@ app.get("/lectures", async (req, res) => {
 最後にデプロイを行う
 `sls deploy`
 
-## 2. Step2 設問一覧フロントエンドとAPIのつなぎ込み
+## 2. Step2 講義一覧フロントエンドとAPIのつなぎ込み
 
 ### プロンプト
 サンプルで作成した講義一覧のフロントコードとAPIをつなぎ込んでください。  
@@ -407,14 +407,14 @@ NEXT_PUBLIC_API_ENDPOINT=https://<ID>.execute-api.us-east-1.amazonaws.com/dev
 
 
 
-## 3. Step3 設問（Lessons）作成 API の実装
+## 3. Step3 講義・設問（Lessons）作成 API の実装
 講義と設問を作成する API を実装します。
 
-▼ 講義と設問の作成
+▼ 講義と設問の作成API curl サンプル
 
 ```
 curl -H 'Content-Type: application/json' -X POST \
-     "https://bldggys750.execute-api.us-east-1.amazonaws.com/dev/lectures" \
+     "https://<API ID>.execute-api.us-east-1.amazonaws.com/dev/lectures" \
      -d '{
        "lectureTitle": "HTML 基礎",
        "category": "FE",
@@ -535,7 +535,7 @@ app.post("/lectures", async (req, res) => {
 - 最終的に登録される DynamoDB のデータ構造は添付の画像の様になっています。 
 ![テーブル構造](テーブル構造.png)
 
-## 4. Step4 設問の作成 API とのつなぎ込み
+## 4. Step4 講義・設問作成のフロントエンドとAPIのつなぎ込み
 設問の作成 API とフロントエンドをつなぎこんだ画面を作成します。
 
 事前に新規作成用のページを作成しておきます。
@@ -693,7 +693,7 @@ app.get("/lectures/:lectureId", async (req, res) => {
 ```
 
 
-## 6. Step6 設問一覧と API のつなぎ込み
+## Step6 設問一覧の取得のフロントエンドとAPIのつなぎ込み
 設問一覧 API とフロントエンドをつなぎこんだ画面を作成します。
 
 事前に新規作成用のページを作成しておきます。
